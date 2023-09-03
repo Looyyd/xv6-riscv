@@ -28,6 +28,7 @@ main()
     iinit();         // inode table
     fileinit();      // file table
     virtio_disk_init(); // emulated hard disk
+    syscallinit(); // init read lock
     userinit();      // first user process
     __sync_synchronize();
     started = 1;
@@ -39,6 +40,7 @@ main()
     kvminithart();    // turn on paging
     trapinithart();   // install kernel trap vector
     plicinithart();   // ask PLIC for device interrupts
+    syscallinit(); // init read lock
   }
 
   scheduler();        
