@@ -2571,6 +2571,56 @@ badarg(char *s)
   exit(0);
 }
 
+void readcount1()
+{
+  int x1 = readcount();
+  int x2 = readcount();
+  char buf[100];
+  (void) read(4, buf, 1);
+  int x3 = readcount();
+  int i;
+  for (i = 0; i < 1000; i++) {
+    (void) read(4, buf, 1);
+  }
+  int x4 = readcount();
+  if (x2-x1 != 0 ){
+    exit(1);
+  }
+  if (x3-x2 != 1 ){
+    exit(1);
+  }
+  if( x4 -x3 != 1000){
+    exit(1);
+  }
+  exit(0);
+}
+
+void readcount2()
+{
+  int x1 = readcount();
+
+  int rc = fork();
+
+  int total = 0;
+  int i;
+  for (i = 0; i < 100000; i++) {
+    char buf[100];
+    (void) read(4, buf, 1);
+  }
+  // https://wiki.osdev.org/Shutdown
+  // (void) shutdown();
+
+  if (rc > 0) {
+    (void) wait(0);
+    int x2 = readcount();
+    total += (x2 - x1);
+  }
+  if (200000 != total){
+    exit(1);
+  }
+  exit(0);
+}
+
 struct test {
   void (*f)(char *);
   char *s;
@@ -2635,6 +2685,8 @@ struct test {
   {sbrklast, "sbrklast"},
   {sbrk8000, "sbrk8000"},
   {badarg, "badarg" },
+  {readcount1, "readcount1"},
+  {readcount2, "readcount2"},
 
   { 0, 0},
 };
@@ -2924,6 +2976,7 @@ outofinodes(char *s)
   }
 }
 
+
 struct test slowtests[] = {
   {bigdir, "bigdir"},
   {manywrites, "manywrites"},
@@ -2934,6 +2987,8 @@ struct test slowtests[] = {
     
   { 0, 0},
 };
+
+
 
 //
 // drive tests

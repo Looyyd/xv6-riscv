@@ -65,9 +65,16 @@ sys_dup(void)
   return fd;
 }
 
+uint64 read_count = 0;
+struct spinlock readcount;
+
+
 uint64
 sys_read(void)
 {
+  acquire(&readcount);
+  read_count++;
+  release(&readcount);
   struct file *f;
   int n;
   uint64 p;
@@ -77,6 +84,16 @@ sys_read(void)
   if(argfd(0, 0, &f) < 0)
     return -1;
   return fileread(f, p, n);
+}
+
+uint64
+sys_readcount(void)
+{
+  int n;
+  acquire(&readcount);
+  n = read_count;
+  release(&readcount);
+  return n;
 }
 
 uint64
@@ -502,4 +519,11 @@ sys_pipe(void)
     return -1;
   }
   return 0;
+}
+
+
+void
+syscallinit(void)
+{
+  initlock(&readcount, "readcount");
 }
