@@ -89,6 +89,19 @@ myproc(void)
   return p;
 }
 
+int settickets(int number){
+  if (number<1){
+    return -1;
+  }
+  struct proc *p = myproc();
+
+  acquire(p->lock);
+  p->tickets = number;
+  release(p->lock);
+  //TODO: update pstat?
+  return 0;
+}
+
 int
 allocpid()
 {
