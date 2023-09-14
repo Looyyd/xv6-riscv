@@ -5,6 +5,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "pstat.h"
 
 struct cpu cpus[NCPU];
 
@@ -101,6 +102,31 @@ int settickets(int number){
   //TODO: update pstat?
   return 0;
 }
+
+int getpinfo(struct pstat *ps) {
+    int i;
+    struct proc *p;
+
+    //TODO: other checks?
+    if (ps == 0){
+      return -1;
+    }
+
+    for(i = 0; i < NPROC; i++) {
+        p = &proc[i]; // use the index to get the address of the process
+        acquire(&p->lock);
+
+        ps->inuse[i] = (p->state != UNUSED) ? 1 : 0;
+        ps[i].tickets = p->tickets;
+        ps[i].pid = p-> pid;
+        ps[i].ticks = 0;//TODO ticks
+
+        release(&p->lock);
+    }
+    return 0;
+}
+
+
 
 int
 allocpid()
