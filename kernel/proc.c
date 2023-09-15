@@ -6,6 +6,7 @@
 #include "proc.h"
 #include "defs.h"
 #include "pstat.h"
+#include "rand.h"
 
 struct cpu cpus[NCPU];
 
@@ -96,19 +97,18 @@ int settickets(int number){
   }
   struct proc *p = myproc();
 
-  acquire(p->lock);
+  acquire(&p->lock);
   p->tickets = number;
-  release(p->lock);
-  //TODO: update pstat?
+  release(&p->lock);
   return 0;
 }
 
-int getpinfo(struct pstat *ps) {
+int getpinfo(struct pstat *ps_user) {
     int i;
     struct proc *p;
+    struct pstat ps; // Local (kernel space) structure
 
-    //TODO: other checks?
-    if (ps == 0){
+    if (ps_user == 0){
       return -1;
     }
 
@@ -116,16 +116,22 @@ int getpinfo(struct pstat *ps) {
         p = &proc[i]; // use the index to get the address of the process
         acquire(&p->lock);
 
-        ps->inuse[i] = (p->state != UNUSED) ? 1 : 0;
-        ps[i].tickets = p->tickets;
-        ps[i].pid = p-> pid;
-        ps[i].ticks = 0;//TODO ticks
+        ps.inuse[i] = (p->state != UNUSED) ? 1 : 0;
+        ps.tickets[i] = p->tickets;
+        ps.pid[i] = p->pid;
+        ps.ticks[i] = p->ticks;
 
         release(&p->lock);
     }
+
+    // Copy the populated kernel-space struct to the user-space struct
+    struct proc *curr_proc = myproc();
+    if (copyout(curr_proc->pagetable, (uint64)ps_user, (char *)&ps, sizeof(ps)) < 0) {
+        return -1;
+    }
+
     return 0;
 }
-
 
 
 int
@@ -164,6 +170,7 @@ found:
   p->pid = allocpid();
   p->state = USED;
   p->tickets = 1;
+  p->ticks = 0;
 
   // Allocate a trapframe page.
   if((p->trapframe = (struct trapframe *)kalloc()) == 0){
@@ -204,6 +211,7 @@ freeproc(struct proc *p)
   p->sz = 0;
   p->pid = 0;
   p->tickets = 0;
+  p->ticks=0;
   p->parent = 0;
   p->name[0] = 0;
   p->chan = 0;
@@ -352,6 +360,7 @@ fork(void)
   safestrcpy(np->name, p->name, sizeof(p->name));
 
   np->tickets = p->tickets;
+  np->ticks=0;
 
   pid = np->pid;
 
@@ -485,7 +494,7 @@ wait(uint64 addr)
 //  - eventually that process transfers control
 //    via swtch back to the scheduler.
 void
-scheduler(void)
+scheduler_old(void)
 {
   struct proc *p;
   struct cpu *c = mycpu();
@@ -508,6 +517,68 @@ scheduler(void)
         // Process is done running for now.
         // It should have changed its p->state before coming back.
         c->proc = 0;
+      }
+      release(&p->lock);
+    }
+  }
+}
+
+void
+scheduler(void)
+{
+  struct proc *p;
+  struct cpu *c = mycpu();
+  int total_tickets;
+  int drawn_ticket;
+  int ticket_sum;
+  drawn_ticket= 0;
+
+  c->proc = 0;
+  for(;;){
+    // Avoid deadlock by ensuring that devices can interrupt.
+    intr_on();
+
+    // Step 1: Summing up all tickets
+    total_tickets = 0;
+    for(p = proc; p < &proc[NPROC]; p++) {
+      acquire(&p->lock);
+      if(p->state == RUNNABLE) {
+        total_tickets += p->tickets;
+      }
+      release(&p->lock);
+    }
+
+    if(total_tickets == 0) {
+      // No runnable processes
+      continue;
+    }
+
+    // Step 2: Selecting a ticket
+    drawn_ticket = kernel_rand() % total_tickets;
+
+    // Step 3: Finding the process
+    ticket_sum = 0;
+    for(p = proc; p < &proc[NPROC]; p++) {
+      acquire(&p->lock);
+      if(p->state == RUNNABLE) {
+        if(drawn_ticket < ticket_sum + p->tickets) {
+          // This is the selected process
+
+          // Step 4: Run the process
+          int tempTicks = ticks;
+          p->state = RUNNING;
+          c->proc = p;
+          swtch(&c->context, &p->context);
+
+          // Process is done running for now.
+          // It should have changed its p->state before coming back.
+          c->proc = 0;
+          p->ticks += ticks - tempTicks;
+
+          release(&p->lock);
+          break;
+        }
+        ticket_sum += p->tickets;
       }
       release(&p->lock);
     }

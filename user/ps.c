@@ -7,30 +7,27 @@
 #include "kernel/stat.h"
 #include "user/user.h"
 #include "kernel/pstat.h"
-#include "kernel/proc.h"
 
-#include "pstat.h" // Include the header for the pstat structure
-#include "user.h"  // For system call interfaces and printf
+int main(int argc, char *argv[]) {
+    struct pstat ps;
 
-int
-main(int argc, char *argv[])
-{
-    struct pstat pstat; // Define the pstat structure
-
-    if(getpinfo(&pstat) != 0) {
-        printf("Error retrieving process information\n");
+    // Call the user-side function to invoke the system call.
+    if (getpinfo(&ps) < 0) {
+        printf("Error getting process info.\n");
         exit(1);
     }
 
-    printf("PID\tTickets\tTicks\tIn Use\n"); // Header
+    // Print the processes info from the filled `pstat` struct.
+    printf("PID\tTickets\tTicks\tIn Use\n");
     printf("----------------------------\n");
     for (int i = 0; i < NPROC; i++) {
-        if(pstat.inuse[i]) { // Print only processes that are in use
-            printf("%d\t%d\t%d\t%d\n", pstat.pid[i], pstat.tickets[i], pstat.ticks[i], pstat.inuse[i]);
+        if (ps.inuse[i]) {
+            printf("%d\t%d\t%d\t%d\n", ps.pid[i], ps.tickets[i], ps.ticks[i], ps.inuse[i]);
         }
     }
 
     exit(0);
 }
+
 
 

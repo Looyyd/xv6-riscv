@@ -1,3 +1,4 @@
+#include "pstat.h"
 // Saved registers for kernel context switches.
 struct context {
   uint64 ra;
@@ -92,7 +93,7 @@ struct proc {
   int xstate;                  // Exit status to be returned to parent's wait
   int pid;                     // Process ID
   int tickets;                 // Number of tickets
-  //TODO: add ticks
+  int ticks;
 
   // wait_lock must be held when using this:
   struct proc *parent;         // Parent process
@@ -107,3 +108,8 @@ struct proc {
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
 };
+
+
+int getpinfo(struct pstat*);
+int settickets(int number);
+

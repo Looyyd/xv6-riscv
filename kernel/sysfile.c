@@ -11,6 +11,7 @@
 #include "stat.h"
 #include "spinlock.h"
 #include "proc.h"
+#include "pstat.h"
 #include "fs.h"
 #include "sleeplock.h"
 #include "file.h"
@@ -95,6 +96,27 @@ sys_readcount(void)
   release(&readcount);
   return n;
 }
+
+uint64
+sys_getpinfo(void)
+{
+    struct pstat* ps;
+
+    argaddr(0, (uint64 *)&ps);
+    return getpinfo(ps);
+}
+
+uint64
+sys_settickets(void)
+{
+    int number;
+
+    // Fetch the ticket number from the first argument
+    argint(0, &number);
+    return settickets(number);
+}
+
+
 
 uint64
 sys_write(void)
