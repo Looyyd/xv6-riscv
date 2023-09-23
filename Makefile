@@ -135,6 +135,7 @@ UPROGS=\
 	$U/_zombie\
 	$U/_ps\
 	$U/_ticket-graph\
+	$U/_null-pointer\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)
